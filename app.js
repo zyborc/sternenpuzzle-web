@@ -461,6 +461,18 @@ function initWebApp(){
   $('installHint').hidden=hintHidden||isStandalone()||!isAppleMobile();
   $('installHintClose').addEventListener('click',()=>{$('installHint').hidden=true;try{localStorage.setItem(INSTALL_HINT_KEY,'1');}catch{}});
   if(isStandalone()){document.documentElement.classList.add('standalone');['gesturestart','gesturechange'].forEach(type=>document.addEventListener(type,event=>event.preventDefault()));}
+  initBackButton();
+}
+// Android back button or gesture: close an open dialog, leave the game for the gallery, only on the start page leave the app.
+// Without this listener Capacitor closes the whole app, which looks like a crash to a child.
+function initBackButton(){
+  const cap=window.Capacitor;if(!isNativeApp())return;
+  let app=null;try{app=cap.Plugins&&cap.Plugins.App||(cap.registerPlugin?cap.registerPlugin('App'):null);}catch{}
+  if(!app)return;
+  app.addListener('backButton',()=>{
+    const open=document.querySelector('dialog[open]');
+    if(open)open.close();else if(runtime.page==='game')showGallery();else app.minimizeApp();
+  });
 }
 // In-app purchase "Alle Welten" (Google Play Billing / StoreKit through @capgo/native-purchases).
 // A parental gate comes first, as both stores require for kids' apps.
