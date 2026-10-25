@@ -89,16 +89,17 @@ const LABEL_MODES=['zahlen','buchstaben','wuerfel','aus'];
 const DICE_DOTS=[[4],[0,8],[0,4,8],[0,2,6,8],[0,2,4,6,8],[0,2,3,5,6,8],[0,2,3,4,5,6,8],[0,1,2,3,5,6,7,8],[0,1,2,3,4,5,6,7,8]];
 const diceSvg=count=>`<svg class="dice" viewBox="0 0 24 24" aria-hidden="true">${DICE_DOTS[count-1].map(i=>`<circle cx="${5+i%3*7}" cy="${5+Math.floor(i/3)*7}" r="2.3"/>`).join('')}</svg>`;
 const labelMode=n=>saved.labels==='wuerfel'&&n*n>DICE_DOTS.length?'zahlen':saved.labels;
-// text: short name for screen readers, show: written in the status line, say: read aloud.
+// text: short name for screen readers, show: written in the status line, say: read aloud, voice: its recording (stimme/).
 function slotLabel(id,mode){
   const number=String(id+1);
   // Each language has its own alphabet and words (sprachen.js); a puzzle has at most 25 places.
-  if(mode==='buchstaben'){const l=lettersOf(currentLanguage)[id];return {text:l.letter,show:t('letterShow',l),say:t('letterSay',l),html:l.letter};}
-  if(mode==='wuerfel')return {text:number,show:t('dots',{n:id+1}),say:number,html:diceSvg(id+1)};
-  return {text:number,show:number,say:number,html:mode==='aus'?'':number};
+  if(mode==='buchstaben'){const l=lettersOf(currentLanguage)[id];return {text:l.letter,show:t('letterShow',l),say:t('letterSay',l),voice:`buchstabe-${l.letter.toLowerCase()}`,html:l.letter};}
+  if(mode==='wuerfel')return {text:number,show:t('dots',{n:id+1}),say:number,voice:`zahl-${number.padStart(2,'0')}`,html:diceSvg(id+1)};
+  return {text:number,show:number,say:number,voice:`zahl-${number.padStart(2,'0')}`,html:mode==='aus'?'':number};
 }
 function labelElement(id,mode,className){const el=document.createElement('span');el.className=className+(mode==='wuerfel'?' is-dice':'');el.innerHTML=slotLabel(id,mode).html;el.setAttribute('aria-hidden','true');return el;}
-// Read-aloud uses the device's own voice for the chosen language (works offline) and follows the sound button.
+// Read-aloud follows the sound button. German and English play recordings (playRecording); other languages,
+// and any text without a recording, use the device's own voice for the chosen language (works offline).
 // In the store apps (Capacitor) the native text-to-speech plugin speaks, because WebViews often lack speechSynthesis.
 // Prefer high-quality voices; iOS also lists robotic Eloquence and novelty voices that sound bad for children.
 // Without a voice for the language, a close one is used (Serbian: Croatian, then Bosnian; they read Latin script).
@@ -125,8 +126,29 @@ if(!nativeTts&&'speechSynthesis' in window){pickWebVoice();try{window.speechSynt
 function pickVoices(){if(nativeTts)nativeVoice=bestVoice(nativeVoices);else if('speechSynthesis' in window)pickWebVoice();}
 // A Serbian voice gets Cyrillic, Croatian and Bosnian voices get Latin script.
 const speechText=(text,code)=>code==='sr'?toCyrillic(text):code==='hr'||code==='bs'?toLatin(text):text;
-function speak(text){
+// German and English have recorded voices (stimme/<language>/, VoxCPM2, Apache 2.0); other languages use the device voice.
+// They play through Web Audio like the sounds, so on the iPhone they follow the mute switch too.
+const VOICE_RECORDINGS=['de','en'];
+const recordings=new Map();let recordingSource=null;
+function playRecording(voice,text){
+  try{
+    if(!runtime.audio)runtime.audio=new (window.AudioContext||window.webkitAudioContext)();
+    const ctx=runtime.audio;if(ctx.state==='suspended')ctx.resume().catch(()=>{});
+    const url=`stimme/${currentLanguage.id}/${voice}.mp3`;
+    if(!recordings.has(url))recordings.set(url,fetch(url).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();}).then(data=>new Promise((ok,fail)=>ctx.decodeAudioData(data,ok,fail))));
+    recordings.get(url).then(buffer=>{
+      if(!runtime.sound)return;
+      try{recordingSource?.stop();}catch{}
+      const source=ctx.createBufferSource();source.buffer=buffer;source.connect(ctx.destination);source.start();recordingSource=source;
+    }).catch(()=>{recordings.delete(url);speakWithDevice(text);});
+  }catch{speakWithDevice(text);}
+}
+function speak(text,voice){
   if(!runtime.sound||!text)return;
+  if(voice&&VOICE_RECORDINGS.includes(currentLanguage.id)){playRecording(voice,text);return;}
+  speakWithDevice(text);
+}
+function speakWithDevice(text){
   if(nativeTts){
     const code=nativeVoice?nativeVoice.code:currentLanguage.voices[0];
     // category 'ambient' keeps following the iPhone mute switch, like the web app.
@@ -299,7 +321,7 @@ function tryPlace(id,target){
   const mode=labelMode(g.n);
   if(id===null||id===undefined){
     // Tapping a free place without a piece names its sign, so the signs can be explored on their own.
-    if(mode!=='aus'&&Number.isInteger(target)&&target>=0&&target<g.pieces.length){const l=slotLabel(target,mode);setStatus(t('slotInfo',{label:l.show}));speak(l.say);}
+    if(mode!=='aus'&&Number.isInteger(target)&&target>=0&&target<g.pieces.length){const l=slotLabel(target,mode);setStatus(t('slotInfo',{label:l.show}));speak(l.say,l.voice);}
     else setStatus(t('tapPieceFirst'));
     return;
   }
@@ -310,7 +332,7 @@ function tryPlace(id,target){
     clearHint();g.pieces[id].placed=true;runtime.selected=null;$('slots').classList.remove('has-selection');renderBoard();renderTray();updateProgress();playSound('correct');
     const count=g.pieces.filter(p=>p.placed).length;
     const phrases=t('praise'),phrase=phrases[count%phrases.length];
-    if(mode==='aus')setStatus(phrase);else{const l=slotLabel(id,mode);setStatus(`${l.show}! ${phrase}`);speak(l.say);}
+    if(mode==='aus')setStatus(phrase);else{const l=slotLabel(id,mode);setStatus(`${l.show}! ${phrase}`);speak(l.say,l.voice);}
     persistGame();
     if(count===g.pieces.length)finishGame();
     else {const next=$('tray').querySelector('.piece');if(next)next.focus({preventScroll:true});}
@@ -326,7 +348,7 @@ function giveHint(){
   selectPiece(id,true);g.hints++;const slot=$('slots').children[id];slot.classList.add('hint');
   const button=$('tray').querySelector(`[data-piece="${id}"]`);if(button)button.scrollIntoView({block:'nearest',behavior:'smooth'});
   const mode=labelMode(g.n),l=slotLabel(id,mode);
-  setStatus(mode==='aus'?t('hintText'):t('hintTextLabel',{label:l.show}));playSound('hint');if(mode!=='aus')speak(l.say);
+  setStatus(mode==='aus'?t('hintText'):t('hintTextLabel',{label:l.show}));playSound('hint');if(mode!=='aus')speak(l.say,l.voice);
   runtime.hintTimer=setTimeout(clearHint,5500);persistGame();
 }
 function updateHelp(){const on=runtime.help;$('board').classList.toggle('show-help',on);$('helpBtn').setAttribute('aria-pressed',String(on));$('helpLabel').textContent=on?t('helpOn'):t('helpOff');}
@@ -385,7 +407,7 @@ function finishGame(){
   const themeId=ASSETS[g.motif].theme,chest=newStar&&routeComplete(themeId,g.n);
   $('winText').textContent=t('winText',{title:motifText(ASSETS[g.motif],'title')});
   $('winPieces').textContent=g.n*g.n;$('winTime').textContent=formatTime(g.elapsed);
-  $('winTitle').textContent=t(chest?'treasureFound':'winTitle');if(chest)speak(t('treasureFound'));
+  $('winTitle').textContent=t(chest?'treasureFound':'winTitle');if(chest)speak(t('treasureFound'),'schatz');
   document.querySelector('.win-star').innerHTML=chest?chestSvg(true):svgIcon('star');document.querySelector('.win-star').classList.toggle('treasure',chest);
   $('winAward').textContent=chest?t('winChest',{world:themeText(themeOf(themeId),'title'),n:g.n*g.n}):t(newStar?'winNewStar':'winAgain');
   setStatus(t('winStatus'));playSound('win');confetti();runtime.paused=true;$('winDialog').showModal();
