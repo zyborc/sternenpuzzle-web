@@ -271,7 +271,7 @@ async function startGame(motif,n,restore=null){
   pieces.forEach(p=>p.placed=placed.has(p.id));
   runtime.game={motif,n,seed,pieces,order:restore?restore.order.slice():shuffled(pieces.map(p=>p.id),seededRandom(seed^0xA28C49E1)),
     elapsed:restore?restore.elapsed:0,moves:restore?restore.moves:0,hints:restore?restore.hints:0,complete:false};
-  const asset=ASSETS[motif];if(saved.theme!==asset.theme){saved.theme=asset.theme;writeSaved();}runtime.page='game';syncHeroVideo();$('galleryPage').hidden=true;$('gamePage').hidden=false;
+  const asset=ASSETS[motif];if(saved.theme!==asset.theme){saved.theme=asset.theme;writeSaved();}runtime.page='game';document.body.classList.add('playing');syncHeroVideo();$('galleryPage').hidden=true;$('gamePage').hidden=false;
   $('gameTitle').textContent=motifText(asset,'title');$('gameSubtitle').textContent=t('gameSubtitle',{n:n*n});
   $('referenceImg').src=asset.src;$('previewImg').src=asset.src;$('previewImg').alt=motifText(asset,'alt');
   $('board').classList.remove('complete');$('helpBtn').disabled=false;runtime.help=true;updateHelp();
@@ -346,7 +346,7 @@ function giveHint(){
   const g=runtime.game;if(!g||g.complete||runtime.loading)return;clearHint();
   const id=runtime.selected!==null?runtime.selected:g.order[0];if(id===undefined)return;
   selectPiece(id,true);g.hints++;const slot=$('slots').children[id];slot.classList.add('hint');
-  const button=$('tray').querySelector(`[data-piece="${id}"]`);if(button)button.scrollIntoView({block:'nearest',behavior:'smooth'});
+  const button=$('tray').querySelector(`[data-piece="${id}"]`);if(button)button.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'});
   const mode=labelMode(g.n),l=slotLabel(id,mode);
   setStatus(mode==='aus'?t('hintText'):t('hintTextLabel',{label:l.show}));playSound('hint');if(mode!=='aus')speak(l.say,l.voice);
   runtime.hintTimer=setTimeout(clearHint,5500);persistGame();
@@ -366,15 +366,21 @@ function slotAt(x,y){
   const el=document.elementFromPoint(x,y),slot=el?.closest('.slot');
   return slot&&!slot.disabled&&slot.parentElement===$('slots')?slot:null;
 }
+function startDrag(d){
+  d.active=true;selectPiece(d.id,true);d.button.classList.add('drag-origin');
+  const g=runtime.game,p=g.pieces[d.id],ghost=document.createElement('div');ghost.className='drag-ghost';
+  const clone=document.createElement('canvas');clone.width=p.canvas.width;clone.height=p.canvas.height;clone.getContext('2d').drawImage(p.canvas,0,0);ghost.append(clone);
+  const mode=labelMode(g.n);if(saved.pieceLabels&&mode!=='aus')ghost.append(labelElement(d.id,mode,'piece-label'));
+  const boardSize=$('board').getBoundingClientRect().width,size=boardSize/g.n*1.47;ghost.style.width=size+'px';ghost.style.height=size+'px';d.ghostSize=size;runtime.ghost=ghost;document.body.append(ghost);
+}
 function pointerMove(event){
   const d=runtime.drag;if(!d||event.pointerId!==d.pointerId)return;
-  if(!d.active&&Math.hypot(event.clientX-d.startX,event.clientY-d.startY)>7){
-    d.active=true;selectPiece(d.id,true);d.button.classList.add('drag-origin');
-    const g=runtime.game,p=g.pieces[d.id],ghost=document.createElement('div');ghost.className='drag-ghost';
-    const clone=document.createElement('canvas');clone.width=p.canvas.width;clone.height=p.canvas.height;clone.getContext('2d').drawImage(p.canvas,0,0);ghost.append(clone);
-    const mode=labelMode(g.n);if(saved.pieceLabels&&mode!=='aus')ghost.append(labelElement(d.id,mode,'piece-label'));
-    const boardSize=$('board').getBoundingClientRect().width,size=boardSize/g.n*1.47;ghost.style.width=size+'px';ghost.style.height=size+'px';d.ghostSize=size;runtime.ghost=ghost;document.body.append(ghost);
+  const dx=event.clientX-d.startX,dy=event.clientY-d.startY,tray=$('tray');
+  // On the phone the pieces sit in a strip that scrolls sideways: a sideways swipe scrolls it, moving up out of the strip picks the piece.
+  if(!d.active&&!d.scrolling&&Math.hypot(dx,dy)>7){
+    if(tray.scrollWidth>tray.clientWidth+1&&Math.abs(dx)>Math.abs(dy)){d.scrolling=true;d.scrollStart=tray.scrollLeft;}else startDrag(d);
   }
+  if(d.scrolling){event.preventDefault();tray.scrollLeft=d.scrollStart-dx;if(event.clientY<tray.getBoundingClientRect().top-10){d.scrolling=false;startDrag(d);}}
   if(d.active){event.preventDefault();runtime.ghost.style.left=(event.clientX-d.ghostSize/2)+'px';runtime.ghost.style.top=(event.clientY-d.ghostSize/2)+'px';
     const target=slotAt(event.clientX,event.clientY);if(runtime.hoveredSlot&&runtime.hoveredSlot!==target)runtime.hoveredSlot.classList.remove('drop-hover');if(target)target.classList.add('drop-hover');runtime.hoveredSlot=target;
   }
@@ -383,11 +389,12 @@ function pointerUp(event){
   const d=runtime.drag;if(!d||event.pointerId!==d.pointerId)return;
   const id=d.id,active=d.active,target=active?slotAt(event.clientX,event.clientY):null;
   cleanupDrag();
+  if(d.scrolling)runtime.suppressClicksUntil=performance.now()+400;
   if(active){runtime.suppressClicksUntil=performance.now()+400;if(target)tryPlace(id,Number(target.dataset.id));else{selectPiece(id,true);setStatus(t('dragSelected'));}}
 }
 function showGallery(){
   if(runtime.loading){++runtime.generation;runtime.loading=false;}
-  cleanupDrag();clearHint();pauseClock();persistGame();if(runtime.updateReady){reloadForUpdate();return;}runtime.page='gallery';runtime.paused=false;
+  cleanupDrag();clearHint();pauseClock();persistGame();if(runtime.updateReady){reloadForUpdate();return;}runtime.page='gallery';document.body.classList.remove('playing');runtime.paused=false;
   $('gamePage').hidden=true;$('galleryPage').hidden=false;renderGallery();window.scrollTo(0,0);
 }
 function openDialog(id){if(runtime.loading)return;cleanupDrag();runtime.paused=true;pauseClock();persistGame();$(id).showModal();}
