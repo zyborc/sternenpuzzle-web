@@ -129,18 +129,32 @@ const speechText=(text,code)=>code==='sr'?toCyrillic(text):code==='hr'||code==='
 // German and English have recorded voices (stimme/<language>/, VoxCPM2, Apache 2.0); other languages use the device voice.
 // They play through Web Audio like the sounds, so on the iPhone they follow the mute switch too.
 const VOICE_RECORDINGS=['de','en'];
-const recordings=new Map();let recordingSource=null;
+const recordings=new Map();let recordingSource=null,recordingElement=null,webAudioFailed=false;
+// XMLHttpRequest instead of fetch: the iOS app serves its files from capacitor://, where fetch can fail.
+const loadRecording=url=>new Promise((ok,fail)=>{const xhr=new XMLHttpRequest();xhr.open('GET',url);xhr.responseType='arraybuffer';
+  xhr.onload=()=>xhr.status===0||xhr.status===200?ok(xhr.response):fail(new Error(xhr.status));xhr.onerror=()=>fail(new Error('xhr'));xhr.send();});
 function playRecording(voice,text){
+  const url=`stimme/${currentLanguage.id}/${voice}.mp3`;
+  if(webAudioFailed){playRecordingElement(url,text);return;}
   try{
     if(!runtime.audio)runtime.audio=new (window.AudioContext||window.webkitAudioContext)();
     const ctx=runtime.audio;if(ctx.state==='suspended')ctx.resume().catch(()=>{});
-    const url=`stimme/${currentLanguage.id}/${voice}.mp3`;
-    if(!recordings.has(url))recordings.set(url,fetch(url).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();}).then(data=>new Promise((ok,fail)=>ctx.decodeAudioData(data,ok,fail))));
+    if(!recordings.has(url))recordings.set(url,loadRecording(url).then(data=>new Promise((ok,fail)=>ctx.decodeAudioData(data,ok,fail))));
     recordings.get(url).then(buffer=>{
       if(!runtime.sound)return;
       try{recordingSource?.stop();}catch{}
       const source=ctx.createBufferSource();source.buffer=buffer;source.connect(ctx.destination);source.start();recordingSource=source;
-    }).catch(()=>{recordings.delete(url);speakWithDevice(text);});
+    }).catch(()=>{recordings.delete(url);webAudioFailed=true;playRecordingElement(url,text);});
+  }catch{webAudioFailed=true;playRecordingElement(url,text);}
+}
+// Second way when Web Audio cannot load or decode a recording: a plain audio element, the device voice only as a last resort.
+function playRecordingElement(url,text){
+  try{
+    recordingElement?.pause();
+    const audio=new Audio(url);recordingElement=audio;let fellBack=false;
+    const fallBack=()=>{if(fellBack||recordingElement!==audio)return;fellBack=true;speakWithDevice(text);};
+    audio.addEventListener('error',fallBack);
+    audio.play()?.catch(fallBack);
   }catch{speakWithDevice(text);}
 }
 function speak(text,voice){
