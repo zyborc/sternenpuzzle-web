@@ -490,7 +490,7 @@ function initWebApp(){
   $('installHint').hidden=hintHidden||isStandalone()||!isAppleMobile();
   $('installHintClose').addEventListener('click',()=>{$('installHint').hidden=true;try{localStorage.setItem(INSTALL_HINT_KEY,'1');}catch{}});
   if(isStandalone()){document.documentElement.classList.add('standalone');['gesturestart','gesturechange'].forEach(type=>document.addEventListener(type,event=>event.preventDefault()));}
-  initBackButton();
+  initBackButton();initEdgeSwipe();
 }
 // Android back button or gesture: close an open dialog, leave the game for the gallery, only on the start page leave the app.
 // Without this listener Capacitor closes the whole app, which looks like a crash to a child.
@@ -502,6 +502,32 @@ function initBackButton(){
     const open=document.querySelector('dialog[open]');
     if(open)open.close();else if(runtime.page==='game')showGallery();else app.minimizeApp();
   });
+}
+// iOS has no system back gesture inside the app: swiping in from the left edge leaves the game for the gallery, like the back button.
+// The page follows the finger; a short, slow swipe springs back.
+function initEdgeSwipe(){
+  const cap=window.Capacitor;if(!isNativeApp()||!(cap.getPlatform&&cap.getPlatform()==='ios'))return;
+  const EDGE=24,page=$('gamePage');let swipe=null;
+  const canSwipe=x=>x<=EDGE&&runtime.page==='game'&&!runtime.drag&&!document.querySelector('dialog[open]');
+  const slide=(x,ms)=>{page.style.transition=ms?`transform ${ms}ms ease-out`:'none';page.style.transform=x?`translateX(${x})`:'';};
+  // Capture phase: a touch at the edge must not also pick up a piece. A plain tap still clicks.
+  window.addEventListener('pointerdown',event=>{if(event.pointerType==='touch'&&canSwipe(event.clientX))event.stopPropagation();},true);
+  window.addEventListener('touchstart',event=>{
+    const touch=event.touches[0];swipe=null;
+    if(event.touches.length===1&&canSwipe(touch.clientX))swipe={x:touch.clientX,y:touch.clientY,t:event.timeStamp,dx:0,active:false};
+  },{passive:true});
+  window.addEventListener('touchmove',event=>{
+    if(!swipe)return;const touch=event.touches[0],dx=touch.clientX-swipe.x,dy=touch.clientY-swipe.y;
+    if(!swipe.active){if(Math.hypot(dx,dy)<8)return;if(dx<=Math.abs(dy)){swipe=null;return;}swipe.active=true;}
+    event.preventDefault();swipe.dx=Math.max(0,dx);slide(swipe.dx+'px',0);
+  },{passive:false});
+  const end=event=>{
+    const s=swipe;swipe=null;if(!s||!s.active)return;
+    const fast=s.dx>40&&s.dx/(event.timeStamp-s.t)>.5;
+    if(event.type==='touchend'&&(s.dx>window.innerWidth*.3||fast)){slide('100vw',180);setTimeout(()=>{showGallery();slide('',0);},180);}
+    else slide('',200);
+  };
+  window.addEventListener('touchend',end);window.addEventListener('touchcancel',end);
 }
 // In-app purchase "Alle Welten" (Google Play Billing / StoreKit through @capgo/native-purchases).
 // A parental gate comes first, as both stores require for kids' apps.
