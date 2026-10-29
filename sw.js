@@ -1,7 +1,7 @@
 'use strict';
 // Offline cache for the installed web app. Bump VERSION whenever a cached file changes,
 // so devices fetch the new files on their next start.
-const VERSION = 'sternenpuzzle-v14-demo';
+const VERSION = 'sternenpuzzle-v15-demo';
 const FILES = [
   './',
   './index.html',

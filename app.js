@@ -209,21 +209,100 @@ function chestSvg(open){
   const lock=open?'':`<rect x="27" y="36" width="10" height="11" rx="2.5" fill="#FFD36E" ${line}/><circle cx="32" cy="41" r="1.6" fill="#29284F"/>`;
   return `<svg class="chest" viewBox="0 0 64 64" aria-hidden="true">${lid}${treasure}<rect x="9" y="32" width="46" height="24" rx="5" fill="#D9925C" ${line}/><path d="M9 41h46" stroke="#FFD36E" stroke-width="5"/>${lock}</svg>`;
 }
+// Treasure map: the stations wind across a little island in rows, the path ends at a red X with the chest.
+// Phones get three stations per row, wider screens two rows, so the whole map fits on one screen.
+const MAP_LINE='stroke="#29284F" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"';
+const MAP_DOODLES={
+  compass:`<circle cx="50" cy="50" r="34" fill="#FFF6DD" ${MAP_LINE}/><path d="M50 14 57 50 50 86 43 50Z" fill="#A8DBE9" ${MAP_LINE}/><path d="M14 50 50 43 86 50 50 57Z" fill="#F6E3B4" ${MAP_LINE}/><path d="M50 14 57 50H43Z" fill="#E4574F" ${MAP_LINE}/><circle cx="50" cy="50" r="5" fill="#FFD36E" ${MAP_LINE}/>`,
+  palm:`<path d="M50 90c3-18 2-34-5-50" fill="none" stroke="#9C5F3A" stroke-width="8" stroke-linecap="round"/><path d="M45 40C36 26 18 26 10 36c12-3 24-1 35 4Zm0 0c2-15 16-24 30-22-12 4-22 11-30 22Zm0 0c12-8 30-6 40 4-14-2-27-3-40-4Zm0 0c-13 1-24 11-26 24 8-10 17-17 26-24Z" fill="#6FCF97" ${MAP_LINE}/><circle cx="47" cy="44" r="4.5" fill="#9C5F3A"/>`,
+  mountain:`<path d="M6 84 34 30l14 20 12-18 34 52Z" fill="#B9A8E0" ${MAP_LINE}/><path d="M34 30 26 46l8-4 6 5Zm26 2-6 9 7-2 4 4Z" fill="#fff"/>`,
+  volcano:`<path d="M10 86 34 44h32l24 42Z" fill="#B48ACB" ${MAP_LINE}/><path d="M34 44c5 8 11 9 16 3 5 6 11 5 16-3Z" fill="#F7876F" ${MAP_LINE}/><path d="M50 34c-4-7-14-3-10 4l10 8 10-8c4-7-6-11-10-4Z" fill="#F6A1BD" ${MAP_LINE}/><path d="M64 22c-2-4-8-2-6 2l6 5 6-5c2-4-4-6-6-2Z" fill="#F6A1BD" ${MAP_LINE}/>`,
+  egg:`<path d="M18 74c10 12 54 12 64 0" fill="#C99A6B" ${MAP_LINE}/><ellipse cx="50" cy="50" rx="21" ry="27" fill="#FFF3DA" ${MAP_LINE}/><circle cx="43" cy="42" r="4" fill="#9ADBC5"/><circle cx="57" cy="56" r="5" fill="#9ADBC5"/><circle cx="44" cy="62" r="3" fill="#F6A1BD"/>`,
+  fern:`<path d="M14 84c2-26 18-40 36-40s34 14 36 40Z" fill="#6FCF97" ${MAP_LINE}/><path d="M32 84c2-14 8-22 18-26m0 0c10 4 16 12 18 26M50 58v26" fill="none" stroke="#3E9C6B" stroke-width="3"/><circle cx="30" cy="66" r="5" fill="#F6A1BD" ${MAP_LINE}/><circle cx="70" cy="62" r="5" fill="#FFD36E" ${MAP_LINE}/>`,
+  footprints:`<g fill="#9C7BB8"><ellipse cx="34" cy="70" rx="9" ry="7"/><path d="M26 62l-6-10 9 6Zm8-4v-12l4 12Zm8 4 7-10-3 12Z"/><ellipse cx="64" cy="40" rx="9" ry="7"/><path d="M56 32l-6-10 9 6Zm8-4V16l4 12Zm8 4 7-10-3 12Z"/></g>`,
+  house:`<path d="M24 52 50 30l26 22v34H24Z" fill="#FFE1B8" ${MAP_LINE}/><path d="M16 54 50 24l34 30" fill="none" stroke="#E4574F" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><rect x="42" y="64" width="16" height="22" rx="3" fill="#A8DBE9" ${MAP_LINE}/><circle cx="50" cy="48" r="5" fill="#FFD36E" ${MAP_LINE}/>`,
+  lighthouse:`<path d="M38 88 43 36h14l5 52Z" fill="#fff" ${MAP_LINE}/><path d="M41 56h18M40 72h20" stroke="#E4574F" stroke-width="7"/><path d="M40 36h20l-3-12H43Z" fill="#FFD36E" ${MAP_LINE}/><path d="M42 24 50 14l8 10" fill="#E4574F" ${MAP_LINE}/><path d="M64 28l14-6M64 34h16M36 28l-14-6M36 34H20" stroke="#FFD36E" stroke-width="4" stroke-linecap="round"/>`,
+  tree:`<rect x="45" y="56" width="10" height="30" rx="3" fill="#9C5F3A" ${MAP_LINE}/><circle cx="50" cy="42" r="24" fill="#6FCF97" ${MAP_LINE}/><circle cx="40" cy="38" r="4" fill="#E4574F"/><circle cx="58" cy="48" r="4" fill="#E4574F"/><circle cx="56" cy="30" r="4" fill="#E4574F"/>`,
+  bone:`<g transform="rotate(-25 50 50)"><path d="M30 42a9 9 0 1 1 8-12h24a9 9 0 1 1 8 12 9 9 0 1 1-8 12H38a9 9 0 1 1-8-12Z" fill="#fff" ${MAP_LINE}/></g>`,
+  fir:`<path d="M50 12 74 48H62l18 30H20l18-30H26Z" fill="#7CC8A8" ${MAP_LINE}/><path d="M50 12 59 26H41Zm-14 36h28l-4 6H40Zm-8 30h44" fill="#fff"/><rect x="44" y="78" width="12" height="10" fill="#9C5F3A" ${MAP_LINE}/>`,
+  igloo:`<path d="M14 82a36 36 0 0 1 72 0Z" fill="#fff" ${MAP_LINE}/><path d="M22 66h56M32 52h36M50 46v20M36 66v16M64 66v16" stroke="#BFD6EE" stroke-width="3"/><path d="M38 82a12 12 0 0 1 24 0Z" fill="#7C9CCB" ${MAP_LINE}/>`,
+  snowflake:`<g stroke="#7C9CCB" stroke-width="6" stroke-linecap="round"><path d="M50 16v68M21 33l58 34M21 67l58-34"/><path d="M42 22l8 8 8-8M42 78l8-8 8 8" fill="none"/></g><circle cx="50" cy="50" r="7" fill="#fff" ${MAP_LINE}/>`,
+  icepeak:`<path d="M8 84 36 26l16 24 10-14 30 48Z" fill="#CFE6F7" ${MAP_LINE}/><path d="M36 26 28 44l8-4 6 6Zm26 10-5 9 6-2 4 4Z" fill="#fff"/><path d="M30 70l6-8 6 8Z" fill="#A8DBE9"/>`,
+  ship:`<path d="M14 62h72l-10 20H24Z" fill="#C27A48" ${MAP_LINE}/><path d="M48 16v46" ${MAP_LINE}/><path d="M50 20c16 6 22 18 22 34H50Z" fill="#FFF6DD" ${MAP_LINE}/><path d="M48 18 32 24l16 6Z" fill="#E4574F" ${MAP_LINE}/>`,
+  octopus:`<path d="M30 52a20 20 0 0 1 40 0c0 6 2 12 8 18-8 2-12-4-14-8 0 6-2 12-6 16-4-4-6-10-6-14 0 4-2 10-6 14-4-4-6-10-6-16-2 4-6 10-14 8 6-6 4-12 4-18Z" fill="#F6A1BD" ${MAP_LINE}/><circle cx="43" cy="50" r="3" fill="#29284F"/><circle cx="57" cy="50" r="3" fill="#29284F"/>`,
+  rock:`<path d="M12 80c2-20 14-34 30-36 6-12 26-12 32 4 10 6 16 18 14 32Z" fill="#C9B79C" ${MAP_LINE}/><path d="M36 64c4-4 10-4 14 0M58 56c4-3 8-3 12 0" fill="none" stroke="#29284F" stroke-width="3" stroke-linecap="round"/>`,
+  towers:`<rect x="16" y="40" width="22" height="46" fill="#B9A8E0" ${MAP_LINE}/><rect x="40" y="22" width="22" height="64" fill="#A8DBE9" ${MAP_LINE}/><rect x="64" y="50" width="20" height="36" fill="#F6A1BD" ${MAP_LINE}/><path d="M22 50h10M22 62h10M46 32h10M46 44h10M46 56h10M70 60h8" stroke="#FFF3B0" stroke-width="5"/>`,
+  bolt:`<path d="M58 8 24 54h22l-8 38 38-50H54Z" fill="#FFD36E" ${MAP_LINE}/>`,
+  balloon:`<path d="M50 12c18 0 28 12 28 26 0 16-16 26-24 34h-8C38 64 22 54 22 38c0-14 10-26 28-26Z" fill="#F6A1BD" ${MAP_LINE}/><path d="M50 12c-8 6-10 18-10 28 0 12 4 22 6 32m4-60c8 6 10 18 10 28 0 12-4 22-6 32" fill="none" stroke="#29284F" stroke-width="2.5"/><rect x="42" y="78" width="16" height="12" rx="2" fill="#C27A48" ${MAP_LINE}/>`,
+  star:`<path d="M50 12l11 23 25 3-18 17 5 25-23-12-23 12 5-25-18-17 25-3Z" fill="#FFD36E" ${MAP_LINE}/>`,
+  planet:`<circle cx="50" cy="50" r="22" fill="#F6A1BD" ${MAP_LINE}/><ellipse cx="50" cy="52" rx="40" ry="11" fill="none" stroke="#29284F" stroke-width="9" transform="rotate(-18 50 52)"/><ellipse cx="50" cy="52" rx="40" ry="11" fill="none" stroke="#FFD36E" stroke-width="4" transform="rotate(-18 50 52)"/><path d="M28 48a22 22 0 0 0 44 0" fill="#F6A1BD" ${MAP_LINE} transform="rotate(-18 50 52)"/>`,
+  rocket:`<g transform="rotate(30 50 50)"><path d="M50 8c14 12 18 34 12 58H38C32 42 36 20 50 8Z" fill="#fff" ${MAP_LINE}/><path d="M50 8c6 5 10 11 12 18H38c2-7 6-13 12-18Z" fill="#E4574F" ${MAP_LINE}/><circle cx="50" cy="40" r="7" fill="#A8DBE9" ${MAP_LINE}/><path d="M38 52 26 70h14Zm24 0 12 18H60Z" fill="#B9A8E0" ${MAP_LINE}/><path d="M42 68c2 10 6 16 8 20 2-4 6-10 8-20Z" fill="#FFD36E" ${MAP_LINE}/></g>`,
+  crater:`<ellipse cx="50" cy="56" rx="34" ry="20" fill="#D9CBF5" ${MAP_LINE}/><ellipse cx="50" cy="52" rx="22" ry="11" fill="#C3B1EE"/><circle cx="24" cy="30" r="6" fill="#D9CBF5" ${MAP_LINE}/>`,
+  alien:`<path d="M30 86c0-22 8-34 20-34s20 12 20 34Z" fill="#9BE08F" ${MAP_LINE}/><circle cx="50" cy="40" r="18" fill="#9BE08F" ${MAP_LINE}/><circle cx="50" cy="38" r="7" fill="#fff" ${MAP_LINE}/><circle cx="50" cy="38" r="3" fill="#29284F"/><path d="M50 22V10" ${MAP_LINE}/><circle cx="50" cy="9" r="4" fill="#FFD36E" ${MAP_LINE}/><path d="M68 62l12-10" ${MAP_LINE}/>`,
+  whale:`<path d="M12 64c0-16 18-26 40-26 20 0 32 12 32 24 6-4 10-12 8-20 6 6 8 18 0 26H22c-6 0-10-2-10-4Z" fill="#7FB8E6" ${MAP_LINE}/><circle cx="34" cy="54" r="3" fill="#29284F"/><path d="M40 30c0-8 4-12 8-14m-8 14c-2-8-6-12-10-12" fill="none" stroke="#7FB8E6" stroke-width="4" stroke-linecap="round"/>`,
+  ufo:`<ellipse cx="50" cy="56" rx="38" ry="12" fill="#B9A8E0" ${MAP_LINE}/><path d="M32 52a18 18 0 0 1 36 0Z" fill="#A8DBE9" ${MAP_LINE}/><circle cx="30" cy="58" r="3" fill="#FFD36E"/><circle cx="50" cy="61" r="3" fill="#FFD36E"/><circle cx="70" cy="58" r="3" fill="#FFD36E"/>`
+};
+const MAP_WORLDS={
+  weltraum:{sea:'#3d3784',sparkle:'#fff3b0',land:'#efe6ff',edge:'#c9b8f0',sea2:'ufo',land2:['planet','rocket','crater','alien','star']},
+  dinos:{sea:'#9fdcd6',sparkle:'#fff',land:'#d6f1bf',edge:'#9ccf86',sea2:'whale',land2:['volcano','palm','egg','fern','footprints']},
+  hunde:{sea:'#a9d8f0',sparkle:'#fff',land:'#ddf2c9',edge:'#a7d38f',sea2:'lighthouse',land2:['house','tree','bone','house','tree']},
+  eis:{sea:'#a9d4ef',sparkle:'#fff',land:'#f7fbff',edge:'#c8def0',sea2:'whale',land2:['fir','igloo','icepeak','snowflake','fir']},
+  piraten:{sea:'#8fd6dd',sparkle:'#fff',land:'#f8e3b5',edge:'#e5c487',sea2:'ship',land2:['palm','rock','octopus','palm','mountain']},
+  helden:{sea:'#c9c2f0',sparkle:'#fff3b0',land:'#ffe9d2',edge:'#f1c9a0',sea2:'balloon',land2:['towers','bolt','tree','star','towers']}
+};
+const mapNum=v=>Math.round(v*10)/10;
+function mapDoodle(name,x,y,size){const k=size/100;return `<g transform="translate(${mapNum(x-size/2)} ${mapNum(y-size/2)}) scale(${mapNum(k*100)/100})">${MAP_DOODLES[name]}</g>`;}
+// Closed smooth outline through the points (Catmull-Rom as cubic Béziers).
+function mapSmooth(p){const n=p.length;return `M${p[0].map(mapNum)}`+p.map((b,i)=>{const a=p[(i-1+n)%n],c=p[(i+1)%n],d=p[(i+2)%n];return `C${mapNum(b[0]+(c[0]-a[0])/6)},${mapNum(b[1]+(c[1]-a[1])/6)} ${mapNum(c[0]-(d[0]-b[0])/6)},${mapNum(c[1]-(d[1]-b[1])/6)} ${c.map(mapNum)}`;}).join('')+'Z';}
+function mapLayout(count,narrow){
+  const points=count+1,cols=narrow?3:Math.max(3,Math.ceil(points/2)),rows=Math.ceil(points/cols);
+  const W=1000,cw=W/(cols+.7),rh=cw*(narrow?.98:.84),mx=cw*.35,my=cw*.3,H=rows*rh+2*my;
+  const spots=[...Array(points)].map((_,i)=>{const r=Math.floor(i/cols),c=r%2?cols-1-i%cols:i%cols;return {r,c,x:mx+cw*(c+.5)+(r%2?-1:1)*cw*.05,y:my+rh*(r+.5)+(c%2?1:-1)*rh*.07};});
+  return {W,H,cw,rh,mx,my,cols,rows,spots,size:cw*(narrow?.64:.6)};
+}
+function mapSvg(theme,m,done,open){
+  const look=MAP_WORLDS[theme]||MAP_WORLDS.piraten,{W,H,cw,rh,mx,my,cols,rows,spots}=m;
+  let rnd=theme.length*7+spots.length;const rand=()=>{rnd=(rnd*9301+49297)%233280;return rnd/233280;};
+  const outline=[...Array(40)].map((_,i)=>{const t=i/40*2*Math.PI,c=Math.cos(t),s=Math.sin(t),k=.97+rand()*.06;
+    return [W/2+(W/2-cw*.12)*Math.sign(c)*Math.abs(c)**.35*k,H/2+(H/2-cw*.1)*Math.sign(s)*Math.abs(s)**.35*k];});
+  const island=mapSmooth(outline);
+  const sparkles=[...Array(46)].map(()=>{const x=rand()*W,y=rand()*H,edge=Math.min(x,W-x,y,H-y);if(edge>cw*.14)return '';
+    return look.sea==='#3d3784'?`<circle cx="${mapNum(x)}" cy="${mapNum(y)}" r="${mapNum(3+rand()*4)}" fill="${look.sparkle}"/>`
+      :`<path d="M${mapNum(x-12)} ${mapNum(y)}q6-7 12 0t12 0" fill="none" stroke="${look.sparkle}" stroke-width="4" stroke-linecap="round"/>`;}).join('');
+  // Doodles sit where no path runs: between the columns and rows, and in the empty cells of the last row.
+  const free=[];for(let r=0;r<rows-1;r++)for(let c=0;c<cols-1;c++)free.push([mx+cw*(c+1),my+rh*(r+1),Math.min(cw,rh)*.5]);
+  const lastRow=rows-1,used=spots.filter(s=>s.r===lastRow).map(s=>s.c);
+  for(let c=0;c<cols;c++)if(!used.includes(c))free.push([mx+cw*(c+.5),my+rh*(lastRow+.5),Math.min(cw,rh)*.72]);
+  const doodles=free.map(([x,y,size],i)=>mapDoodle(look.land2[i%look.land2.length],x,y,size)).join('');
+  const segs=spots.slice(1).map((b,i)=>{const a=spots[i];let d;
+    if(a.r===b.r){const bow=(i%2?1:-1)*rh*.1;d=`M${mapNum(a.x)} ${mapNum(a.y)}C${mapNum(a.x+(b.x-a.x)/3)} ${mapNum(a.y+bow)} ${mapNum(b.x-(b.x-a.x)/3)} ${mapNum(b.y+bow)} ${mapNum(b.x)} ${mapNum(b.y)}`;}
+    else{const side=a.x>W/2?1:-1,out=cw*.62;d=`M${mapNum(a.x)} ${mapNum(a.y)}C${mapNum(a.x+side*out)} ${mapNum(a.y)} ${mapNum(b.x+side*out)} ${mapNum(b.y)} ${mapNum(b.x)} ${mapNum(b.y)}`;}
+    const walked=done[i]&&(i+1<done.length?done[i+1]:open);
+    return `<path d="${d}" class="map-trail${walked?' walked':''}"/>`;}).join('');
+  const goal=spots[spots.length-1],x=m.size*.3;
+  const mark=`<path d="M${mapNum(goal.x-x)} ${mapNum(goal.y-x*.55)}l${mapNum(2*x)} ${mapNum(x*1.1)}m0 -${mapNum(x*1.1)}l-${mapNum(2*x)} ${mapNum(x*1.1)}" stroke="#E4574F" stroke-width="${mapNum(cw*.07)}" stroke-linecap="round" transform="translate(0 ${mapNum(m.size*.72)})"/>`;
+  const corner=Math.min(cw*.42,my*1.6);
+  return `<svg class="map-art" viewBox="0 0 ${W} ${mapNum(H)}" preserveAspectRatio="none" aria-hidden="true"><rect width="${W}" height="${mapNum(H)}" fill="${look.sea}"/>${sparkles}<path d="${island}" fill="${look.edge}" transform="translate(0 ${mapNum(cw*.04)})"/><path d="${island}" fill="${look.land}" stroke="${look.edge}" stroke-width="5"/>${doodles}${mapDoodle('compass',W-corner*.62,corner*.62,corner)}${mapDoodle(look.sea2,corner*.62,H-corner*.62,corner)}<g class="map-trails">${segs}</g>${mark}</svg>`;
+}
 function renderRoute(){
   const theme=themeOf(saved.theme),n=saved.level,motifs=themeMotifs(theme.id),done=new Set(routeDone(theme.id,n));
   const next=motifs.find(i=>!done.has(i)),open=next===undefined,left=motifs.length-done.size,chests=LEVELS.filter(l=>routeComplete(theme.id,l)).length;
   $('routeTitle').textContent=t('routeTitle',{n:n*n});
   $('routeText').textContent=open?t('routeOpen',{n:n*n}):t('routeLeft',{left});
   $('routeChests').innerHTML=`${svgIcon('chest')}${chests} / ${LEVELS.length}`;$('routeChests').title=t('routeChestsTitle',{chests,total:LEVELS.length});
-  $('routePath').replaceChildren();$('routePath').style.setProperty('--count',motifs.length+1);
+  runtime.mapNarrow=$('route').clientWidth<560;
+  const map=mapLayout(motifs.length,runtime.mapNarrow),place=(el,spot,scale=1)=>{el.style.left=`${spot.x/map.W*100}%`;el.style.top=`${spot.y/map.H*100}%`;el.style.width=`${map.size*scale/map.W*100}%`;};
+  $('routeMap').style.aspectRatio=`${map.W} / ${mapNum(map.H)}`;
+  $('routeArt').innerHTML=mapSvg(theme.id,map,motifs.map(i=>done.has(i)),open);
+  $('routePath').replaceChildren();
   motifs.forEach((index,position)=>{
     const asset=ASSETS[index],isDone=done.has(index),item=document.createElement('li'),button=document.createElement('button');
     button.type='button';button.className=`station${isDone?' done':''}${index===next?' next':''}`;
     button.setAttribute('aria-label',t('stationAria',{position:position+1,title:motifText(asset,'title'),state:t(isDone?'stationDone':index===next?'stationNext':'stationOpen'),n:n*n}));
     button.innerHTML=`<img src="${asset.src}" alt="" width="64" height="64" loading="lazy"><span class="station-badge">${isDone?svgIcon('check'):position+1}</span>`;
-    button.addEventListener('click',()=>startGame(index,n));item.append(button);$('routePath').append(item);
+    button.addEventListener('click',()=>startGame(index,n));item.append(button);place(item,map.spots[position]);$('routePath').append(item);
   });
-  const goal=document.createElement('li');goal.className=`route-goal${open?' open':''}`;
+  const goal=document.createElement('li');goal.className=`route-goal${open?' open':''}`;place(goal,map.spots[motifs.length],1.25);
   goal.innerHTML=`<span role="img" aria-label="${t(open?'chestOpen':'chestClosed')}">${chestSvg(open)}</span>`;$('routePath').append(goal);
 }
 function renderGallery(){
@@ -464,7 +543,7 @@ function init(){
   window.addEventListener('keydown',event=>{if(event.key==='Escape'){cleanupDrag();if(runtime.page==='game'&&!runtime.paused)selectPiece(null);}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden){cleanupDrag();pauseClock();persistGame();}else resumeClock();syncHeroVideo();});
   window.addEventListener('pagehide',()=>{pauseClock();persistGame();});window.addEventListener('pageshow',()=>resumeClock());
-  window.addEventListener('resize',cleanupDrag);
+  window.addEventListener('resize',()=>{cleanupDrag();if(runtime.page==='gallery'&&($('route').clientWidth<560)!==runtime.mapNarrow)renderRoute();});
   setInterval(()=>{if(runtime.page==='game'&&runtime.game)$('timeStat').textContent=formatTime(elapsedNow());},500);
   runtime.saveTimer=setInterval(()=>{if(runtime.game&&!runtime.game.complete&&runtime.page==='game')persistGame();},10000);
   initWebApp();
