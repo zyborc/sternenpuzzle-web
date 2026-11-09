@@ -191,7 +191,7 @@ function themeStars(themeId){const ids=new Set(themeMotifs(themeId).map(i=>ASSET
 const FREE_THEMES=['weltraum'];
 const UNLOCK_PRODUCT='sternenpuzzle.alle_welten';
 const UNLOCK_KEY='sternenpuzzle.unlocked';
-const STORE_LINKS={play:'',apple:''};
+const STORE_LINKS={play:'',apple:'https://apps.apple.com/app/id6828447105'};
 const store={unlocked:false,price:'',busy:false,gate:null};
 const themeLocked=id=>isNativeApp()&&!store.unlocked&&!FREE_THEMES.includes(id);
 function renderThemes(){
