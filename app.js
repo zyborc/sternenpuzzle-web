@@ -636,7 +636,10 @@ function setUnlocked(on){
 async function refreshPurchases(){
   const plugin=purchasePlugin();if(!plugin)return false;
   const {purchases=[]}=await plugin.getPurchases({productType:'inapp'});
-  const owned=purchases.some(ownsUnlock);setUnlocked(owned);return owned;
+  const owned=purchases.some(ownsUnlock);setUnlocked(owned);
+  // A promo code redeemed in the Play Store arrives unacknowledged; Google refunds it after three days unless the app acknowledges it.
+  purchases.filter(tx=>ownsUnlock(tx)&&tx.isAcknowledged===false&&tx.purchaseToken).forEach(tx=>plugin.acknowledgePurchase({purchaseToken:tx.purchaseToken}).catch(()=>{}));
+  return owned;
 }
 async function loadPrice(){
   const plugin=purchasePlugin();if(!plugin||store.price)return;
@@ -681,6 +684,8 @@ function initStore(){
   if(!purchasePlugin())return;
   try{store.unlocked=localStorage.getItem(UNLOCK_KEY)==='1';}catch{}
   refreshPurchases().catch(()=>{});
+  // A code redeemed in the App Store or Play Store while the app was in the background unlocks on return.
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!store.busy)refreshPurchases().catch(()=>{});});
 }
 // Export only deterministic helpers for local tests; not needed by the player.
 window.SternenpuzzleTest={generatePieces,puzzlePath,seededRandom,shuffled,formatTime,sanitizeSave,slotLabel};
